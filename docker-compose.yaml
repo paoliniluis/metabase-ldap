@@ -1,0 +1,85 @@
+version: '3.7'
+services:
+  metabase-ldap:
+    image: metabase/metabase-enterprise:v1.46.1
+    container_name: metabase-ldap
+    hostname: metabase-ldap
+    volumes: 
+    - /dev/urandom:/dev/random:ro
+    ports:
+      - 8443:3000
+    environment: 
+      - "MB_DB_TYPE=postgres"
+      - "MB_DB_DBNAME=metabase"
+      - "MB_DB_PORT=5432"
+      - "MB_DB_USER=metabase"
+      - "MB_DB_PASS=mysecretpassword"
+      - "MB_DB_HOST=postgres-ldap"
+      - "MB_LDAP_HOST=openldap"
+      - "MB_LDAP_PORT=389"
+      - "MB_LDAP_BIND_DN=cn=admin,dc=example,dc=org"
+      - "MB_LDAP_ENABLED=true"
+      - "MB_LDAP_GROUP_BASE=cn=readers"
+      - "MB_LDAP_PASSWORD=adminpass"
+      - "MB_LDAP_USER_BASE=ou=users,dc=example,dc=org"
+      - "MB_LDAP_ATTRIBUTE_EMAIL=uid"
+      - "MB_LDAP_ATTRIBUTE_FIRSTNAME=uid"
+      - "MB_LDAP_ATTRIBUTE_LASTNAME=sn"
+    networks:
+      - metanet1-ldap
+    depends_on: 
+      - postgres-ldap
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  postgres-ldap:
+    image: postgres:15.2-alpine
+    container_name: postgres-ldap
+    hostname: postgres-ldap
+    environment:
+      - "POSTGRES_USER=metabase"
+      - "POSTGRES_DB=metabase"
+      - "POSTGRES_PASSWORD=mysecretpassword"
+    networks: 
+      - metanet1-ldap
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase -d metabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  setup-ldap:
+    image: bash:5.1.16
+    container_name: setup-ldap
+    volumes:
+      - $PWD/setup:/tmp
+    networks:
+      - metanet1-ldap
+    command: sh /tmp/metabase-setup.sh metabase-ldap:3000
+    cpus: 1
+    mem_limit: 128m
+    depends_on:
+      metabase-ldap:
+        condition: service_healthy
+  openldap:
+    image: bitnami/openldap:2.5.14
+    hostname: openldap
+    container_name: openldap
+    ports:
+      - 1389:389
+    environment:
+      - LDAP_ADMIN_USERNAME=admin
+      - LDAP_ADMIN_PASSWORD=adminpass
+      - LDAP_USERS=user01@example.org,user02@example.org
+      - LDAP_PASSWORDS=123456,123465
+      - LDAP_PORT_NUMBER=389
+      - LDAP_ROOT=dc=example,dc=org
+      - LDAP_LOGLEVEL=32
+      - LDAP_USER_DC=users
+      - LDAP_GROUP=readers
+    networks:
+      - metanet1-ldap
+networks: 
+  metanet1-ldap:
+    driver: bridge
