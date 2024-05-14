@@ -1,30 +1,35 @@
-version: '3.7'
 services:
-  metabase-ldap:
-    image: metabase/metabase-enterprise:v1.46.1
+ metabase-ldap:
+    image: metabase/metabase-enterprise:v1.49.10
     container_name: metabase-ldap
     hostname: metabase-ldap
     volumes: 
     - /dev/urandom:/dev/random:ro
+    - $PWD/logging_config:/metabase.db
     ports:
       - 8443:3000
     environment: 
-      - "MB_DB_TYPE=postgres"
-      - "MB_DB_DBNAME=metabase"
-      - "MB_DB_PORT=5432"
-      - "MB_DB_USER=metabase"
-      - "MB_DB_PASS=mysecretpassword"
-      - "MB_DB_HOST=postgres-ldap"
-      - "MB_LDAP_HOST=openldap"
-      - "MB_LDAP_PORT=389"
-      - "MB_LDAP_BIND_DN=cn=admin,dc=example,dc=org"
-      - "MB_LDAP_ENABLED=true"
-      - "MB_LDAP_GROUP_BASE=cn=readers"
-      - "MB_LDAP_PASSWORD=adminpass"
-      - "MB_LDAP_USER_BASE=ou=users,dc=example,dc=org"
-      - "MB_LDAP_ATTRIBUTE_EMAIL=uid"
-      - "MB_LDAP_ATTRIBUTE_FIRSTNAME=uid"
-      - "MB_LDAP_ATTRIBUTE_LASTNAME=sn"
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: mysecretpassword
+      MB_DB_HOST: postgres-ldap
+      # MB_LDAP_HOST: opendj
+      MB_LDAP_HOST: openldap
+      MB_LDAP_PORT: 389
+      MB_LDAP_BIND_DN: cn=admin,dc=example,dc=org # this is for openldap
+      # MB_LDAP_BIND_DN: cn=admin # this is for opendj
+      MB_LDAP_ENABLED: true
+      MB_LDAP_GROUP_BASE: cn=readers,ou=users,dc=example,dc=org # this is only for openldap
+      MB_LDAP_PASSWORD: adminpass
+      MB_LDAP_USER_BASE: ou=users,dc=example,dc=org
+      MB_LDAP_ATTRIBUTE_EMAIL: uid
+      MB_LDAP_ATTRIBUTE_FIRSTNAME: cn
+      MB_LDAP_ATTRIBUTE_LASTNAME: sn
+      MB_LDAP_GROUP_SYNC: true
+      MB_LDAP_GROUP_MAPPINGS: '{"cn=readers,ou=users,dc=example,dc=org":[2]}'
+      JAVA_TOOL_OPTIONS: -Xms512m -Xmx1530m -Dlog4j.configurationFile=file:/metabase.db/log4j2.xml
     networks:
       - metanet1-ldap
     depends_on: 
